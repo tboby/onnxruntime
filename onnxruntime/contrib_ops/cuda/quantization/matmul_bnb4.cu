@@ -53,7 +53,7 @@ __global__ void kgemm_4bit_inference_naive(
     const T* __restrict__ A,
     const uint8_t* B,
     const T* absmax,
-    const T* datatype,
+    const T* quant_map,
     T* out,
     int lda,
     int ldb,
@@ -75,11 +75,7 @@ __global__ void kgemm_4bit_inference_naive(
   uint8_t local_B_4bit[num_values_8bit];
   T local_B[num_values_4bit / 4];
   T local_A[num_values_4bit / 4];
-  __shared__ T quant_map[16];
   T local_absmax = T(0.0f);
-
-  for (int i = threadIdx.x; i < 16; i++) quant_map[i] = T(datatype[i]);
-  __syncthreads();
 
   // A: [1, K]
   // B: [N, K]
