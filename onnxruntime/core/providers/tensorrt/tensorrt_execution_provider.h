@@ -97,6 +97,61 @@ template <typename T>
 using unique_pointer = std::unique_ptr<T, TensorrtInferDeleter>;
 };  // namespace tensorrt_ptr
 
+template <typename T>
+inline T RoundUp(T m, T n) {
+  return ((m + n - 1) / n) * n;
+}
+
+//
+// Class to allocate memory for outputs with data-dependent shapes. The sizes of those are unknown so pre-allocation is
+// not possible.
+//
+class OutputAllocator : public nvinfer1::IOutputAllocator {
+ public:
+  OutputAllocator(OrtAllocator* alloc)
+      : allocator(alloc) {
+  }
+
+  void* reallocateOutput(
+      char const* tensorName, void* currentMemory, uint64_t size, uint64_t alignment) noexcept override {
+    // Some memory allocators return nullptr when allocating zero bytes, but TensorRT requires a non-null ptr
+    // even for empty tensors, so allocate a dummy byte.
+    size = std::max(size, static_cast<uint64_t>(1));
+    if (size > allocated_size) {
+      buffer = IAllocator::MakeUniquePtrFromOrtAllocator<void>(allocator, RoundUp(size, alignment));
+      allocated_size = size;
+    }
+    return buffer.get();
+  }
+
+  void* getBuffer() {
+    return buffer.get();
+  }
+
+  void notifyShape(char const* tensorName, nvinfer1::Dims const& dims) noexcept override {
+    output_shapes.reserve(dims.nbDims);
+    for (int i = 0; i < dims.nbDims; i++) {
+      output_shapes.push_back(dims.d[i]);
+    }
+  }
+
+  std::vector<int64_t>& getOutputShape() {
+    return output_shapes;
+  }
+
+  uint64_t getSize() {
+    return allocated_size;
+  }
+
+  ~OutputAllocator() override {}
+
+ private:
+  OrtAllocator* allocator = nullptr;
+  IAllocatorUniquePtr<void> buffer;
+  uint64_t allocated_size = 0;
+  std::vector<int64_t> output_shapes;
+};
+
 using ShapeRangesMap = std::unordered_map<std::string, std::unordered_map<size_t, std::vector<std::vector<int64_t>>>>;
 
 // Information to construct kernel function state.
@@ -105,15 +160,16 @@ struct TensorrtFuncState {
   DestroyFunc test_release_func = nullptr;
   AllocatorHandle allocator = nullptr;
   std::string fused_node_name;
+  nvinfer1::IBuilder* builder;
   tensorrt_ptr::unique_pointer<nvonnxparser::IParser>* parser = nullptr;
   std::unique_ptr<nvinfer1::ICudaEngine>* engine = nullptr;
   std::unique_ptr<nvinfer1::IExecutionContext>* context = nullptr;
-  std::unique_ptr<nvinfer1::IBuilder>* builder = nullptr;
   std::unique_ptr<nvinfer1::INetworkDefinition>* network = nullptr;
   std::vector<std::unordered_map<std::string, size_t>> input_info;
   std::vector<std::unordered_map<std::string, size_t>> output_info;
   std::unordered_map<std::string, std::unordered_map<size_t, std::vector<std::vector<int64_t>>>> input_shape_ranges;
   bool sync_stream_after_enqueue = false;
+  std::unordered_map<char const*, OutputAllocator*> dds_output_allocator_map;
   OrtMutex* tensorrt_mu_ptr = nullptr;
   bool fp16_enable = false;
   bool int8_enable = false;
@@ -153,6 +209,7 @@ struct SubGraphContext {
 };
 
 using SubGraphContextMap = std::unordered_map<std::string, std::unique_ptr<SubGraphContext>>;
+using DDSOutputAllocatorMap = std::unordered_map<char const*, OutputAllocator*>;
 
 // Logical device representation.
 class TensorrtExecutionProvider : public IExecutionProvider {
@@ -245,6 +302,8 @@ class TensorrtExecutionProvider : public IExecutionProvider {
   std::unordered_set<std::string> control_flow_op_set_ = {"If", "Loop", "Scan"};
   mutable std::unordered_map<std::string, std::unique_ptr<SubGraphContext>> subgraph_context_map_;
 
+  mutable std::unique_ptr<nvinfer1::IBuilder> builder_;
+
   // Following maps that hold TRT objects will be accessible by different threads if ORT is using multithreading.
   // In general, TensorRT objects are not thread safe; accesses to an object from different threads must be serialized by the client.
   // But there are still some thread safe operations, please see here https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#threading
@@ -261,6 +320,7 @@ class TensorrtExecutionProvider : public IExecutionProvider {
   std::unordered_map<std::string, std::vector<std::vector<int64_t>>> profile_opt_shapes_;
   std::unordered_map<std::string, ShapeRangesMap> input_shape_ranges_;  // The profile shape ranges that the engine is built with
   std::unordered_map<std::string, std::vector<nvinfer1::IOptimizationProfile*>> profiles_;
+  std::unordered_map<std::string, DDSOutputAllocatorMap> dds_output_allocator_map_;  // For DDS output tensor
 
   // for external stream, we need to create its cudnn/cublass handle before cuda EP enable cuda graph capture
   cudnnHandle_t external_cudnn_handle_ = nullptr;
@@ -456,5 +516,11 @@ class TensorrtExecutionProvider : public IExecutionProvider {
   void CaptureBegin();
   void CaptureEnd();
   void IncrementRegularRunCountBeforeGraphCapture();
+
+  /**
+   * Get the pointer to the IBuilder instance.
+   * This function only creates the instance at the first time it's being called."
+   */
+  nvinfer1::IBuilder* GetBuilder() const;
 };
 }  // namespace onnxruntime
