@@ -14,37 +14,11 @@ s) ORT_SOURCE=${OPTARG};;
 esac
 done
 
-# Check GPU status
-
-# Execute the first command and check its exit status
-nvidia-smi -i 0 -q -d CLOCK
-if [ $? -ne 0 ]; then
-    echo "Failed to execute nvidia-smi -i 0 -q -d CLOCK"
-    # Handle the error
-fi
-
-# Set persistent mode to 1
+# Lock GPU freq
 nvidia-smi -i 0 -pm 1
-if [ $? -ne 0 ]; then
-    echo "Failed to set persistent mode with nvidia-smi -i 0 -pm 1"
-    # Handle the error
-fi
-
-# Execute and process the output for max clocks
-max_clocks=$(nvidia-smi -i 0 -q -d CLOCK | grep -A 4 "Max Clocks" | grep "Graphics" | awk '{print $3}')
-if [ $? -ne 0 ]; then
-    echo "Failed to retrieve max clocks"
-    # Handle the error
-else
-    echo "Max Clocks: $max_clocks"
-fi
-
-# Query current GPU information
-nvidia-smi --query-gpu=gpu_name,gpu_bus_id,vbios_version,clocks.current.sm,clocks.mem, --format=csv
-if [ $? -ne 0 ]; then
-    echo "Failed to query GPU information"
-    # Handle the error
-fi
+nvidia-smi -i 0 --lock-gpu-clocks=1590,1590
+nvidia-smi -i 0 --lock-memory-clocks=5001,5001 
+nvidia-smi -i 0 -q -d CLOCK
 
 ONNX_MODEL_TAR_URL="https://github.com/onnx/models/raw/main/vision/classification/squeezenet/model/squeezenet1.0-7.tar.gz"
 MODEL_TAR_NAME="squeezenet1.0-7.tar.gz"
