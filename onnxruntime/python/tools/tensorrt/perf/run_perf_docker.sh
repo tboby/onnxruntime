@@ -23,8 +23,8 @@ if [ $? -ne 0 ]; then
 fi
 lscpu
 nvidia-smi -i 0 -pm 1
-nvidia-smi -i 0 --lock-gpu-clocks=580,580
-nvidia-smi -i 0 --lock-memory-clocks=400,400
+nvidia-smi -i 0 --lock-gpu-clocks=300,300
+nvidia-smi -i 0 --lock-memory-clocks=405,405
 nvidia-smi -i 0 -q -d CLOCK
 
 docker run --gpus all -v $PERF_DIR:$DOCKER_PERF_DIR -v $MODEL_VOLUME/$OPTION:$DOCKER_PERF_DIR$OPTION $DOCKER_IMAGE /bin/bash $DOCKER_PERF_DIR'perf.sh' -d $DOCKER_PERF_DIR -o $OPTION -m $MODEL_PATH -b $BUILD_ORT -e "$EP_LIST" "$BENCHMARK_ARGS"
