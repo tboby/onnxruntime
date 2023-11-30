@@ -28,13 +28,8 @@ def get_ep_list(comparison):
     else:
         # test with cuda and trt
         ep_list = [
-            cpu,  # noqa: F405
-            cuda,  # noqa: F405
             trt,  # noqa: F405
-            standalone_trt,  # noqa: F405
-            cuda_fp16,  # noqa: F405
             trt_fp16,  # noqa: F405
-            standalone_trt_fp16,  # noqa: F405
         ]
     return ep_list
 
