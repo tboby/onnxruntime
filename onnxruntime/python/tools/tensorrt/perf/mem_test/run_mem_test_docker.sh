@@ -25,8 +25,8 @@ then
 fi
 # Lock GPU freq
 nvidia-smi -i 0 -pm 1
-nvidia-smi -i 0 --lock-gpu-clocks=580,580
-nvidia-smi -i 0 --lock-memory-clocks=400,400
+nvidia-smi -i 0 --lock-gpu-clocks=300,300
+nvidia-smi -i 0 --lock-memory-clocks=405,405
 nvidia-smi -i 0 -q -d CLOCK
 lscpu
 docker run --rm --gpus all -v $MEM_TEST_DIR:$DOCKER_MEM_TEST_DIR $DOCKER_IMAGE /bin/bash $DOCKER_MEM_TEST_DIR'run.sh' -p $DOCKER_MEM_TEST_DIR -o $DOCKER_ORT_LIBS -s $DOCKER_ORT_SOURCE -l $BUILD_ORT_LATEST
