@@ -134,7 +134,25 @@ def main():
                 )
 
             p = subprocess.run(command, stderr=subprocess.PIPE)  # noqa: F405
-            logger.info("Completed subprocess %s ", " ".join(p.args))  # noqa: F405
+            
+            # Stop the CPU frequency recording thread
+            stop_event.set()
+            cpu_thread.join()
+            
+            # Store frequency data for this model and EP
+            cpu_freq_data[f"{model} {ep}"] = frequency_data
+            logger.info("Completed subprocess %s with cpu freq monitor", " ".join(p.args))  # noqa: F405
+
+            # Check GPU clock info 
+            try:
+                nvidia_smi_output = subprocess.run(["nvidia-smi", "-i", "0", "-q", "-d", "CLOCK"], capture_output=True, text=True, check=True)
+                print(f"{model}-{ep}: NVIDIA GPU Clock Information")
+                print(nvidia_smi_output.stdout)
+            except subprocess.CalledProcessError as e:
+                print("Error running nvidia-smi command:", e)
+            except Exception as e:
+                print("Unexpected error:", e)
+            
             logger.info("Return code: %d", p.returncode)  # noqa: F405
 
             if p.returncode != 0:
