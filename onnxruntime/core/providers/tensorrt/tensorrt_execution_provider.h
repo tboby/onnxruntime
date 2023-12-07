@@ -99,6 +99,7 @@ using unique_pointer = std::unique_ptr<T, TensorrtInferDeleter>;
 
 template <typename T>
 inline T RoundUp(T m, T n) {
+  LOGS_DEFAULT(WARNING) << "[[[" << m << " " << n << "]: " << ((m + n - 1) / n) * n << "]]";
   return ((m + n - 1) / n) * n;
 }
 
@@ -120,6 +121,7 @@ class OutputAllocator : public nvinfer1::IOutputAllocator {
     if (size > allocated_size) {
       buffer = IAllocator::MakeUniquePtrFromOrtAllocator<void>(allocator, RoundUp(size, alignment));
       allocated_size = size;
+      LOGS_DEFAULT(WARNING) << "Size: " << size << " allocated_size: " << allocated_size << " ";
     }
     return buffer.get();
   }
