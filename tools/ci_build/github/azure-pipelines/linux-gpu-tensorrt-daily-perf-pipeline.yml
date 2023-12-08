@@ -18,9 +18,9 @@ parameters:
 - name: ModelGroups
   type: object
   default: 
-    - "onnx-zoo-models"
     - "partner-models"
-
+    - "onnx-zoo-models"
+    
 - name: MemTest
   displayName: Run Memory Test
   type: boolean
