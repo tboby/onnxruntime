@@ -2543,7 +2543,8 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
      *   2) As long as one of the dynamic shape input tensors has no explicitly associated profile, TRT EP will create default shape as described above,
      *      and all the profiles won't be applied and engine won't be built until EP compute time.
      */
-    bool has_dynamic_shape = false;  // True if input tensor has dynamic shape and no explicit profile is specified, otherwise false.
+    bool has_dynamic_input_shape = false;  // True if input tensor has dynamic shape and no explicit profile is specified, otherwise false.
+    bool has_dynamic_output_shape = true;
     bool has_explicit_profile = false;
     bool apply_explicit_profile = false;
     int num_profiles = 0;
@@ -2606,7 +2607,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
           std::vector<int64_t> shape_vector{INT_MAX, INT_MIN, INT_MIN};
           profile_vector.push_back(shape_vector);  // only one profile needed
           input_implicit_shape_ranges[input_name][0] = profile_vector;
-          has_dynamic_shape = true;
+          has_dynamic_input_shape = true;
         } else {
           // Execution tensor
           for (int j = 0, end = nb_dims; j < end; ++j) {
@@ -2615,7 +2616,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
               std::vector<int64_t> shape_vector{INT_MAX, INT_MIN, INT_MIN};
               profile_vector.push_back(shape_vector);  // only one profile needed
               input_implicit_shape_ranges[input_name][j] = profile_vector;
-              has_dynamic_shape = true;
+              has_dynamic_input_shape = true;
             }
           }
         }
@@ -2627,7 +2628,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     if (has_explicit_profile) {
       // TRT EP has a constraint here.
       // Users need to provide all the dynamic shape inputs with associated profiles if they want to explicitly specify profiles through provider options.
-      if (has_dynamic_shape) {
+      if (has_dynamic_input_shape) {
         std::ostringstream msg;
         msg << "User needs to provide all the dynamic shape inputs with associated profiles if they want to explicitly set profiles through provider options.\n";
         msg << "Please note that main graph could be partitioned into TRT/CUDA/CPU subgraphs, in this case, user also needs to provide shape profiles for the TRT subgraph's input if it's dynamic shape input.\n";
@@ -2651,7 +2652,11 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     }
     // If no explicit profile is applied and the input has dynamic shape, TRT EP simply creates one profile by default.
     // It will later set proper min/max/opt shape values duing EP compute time.
-    else if (!has_explicit_profile && has_dynamic_shape) {
+    else if (!has_explicit_profile && has_dynamic_input_shape) {
+      trt_profiles.push_back(trt_builder->createOptimizationProfile());
+    } 
+    // NonZero node has static input and dynamic output
+    else if (!has_explicit_profile && !has_dynamic_input_shape && has_dynamic_output_shape) {
       trt_profiles.push_back(trt_builder->createOptimizationProfile());
     }
 
@@ -2769,7 +2774,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     CUDA_CALL_THROW(cudaGetDeviceProperties(&prop, device_id_));
     std::string compute_capability = GetComputeCapacity(prop);
 
-    if (!has_dynamic_shape) {
+    if (!has_dynamic_input_shape) {
       const std::string cache_path = GetCachePath(cache_path_, trt_node_name_with_precision);
       const std::string engine_cache_path = cache_path + "_sm" + compute_capability + ".engine";
       const std::string encrypted_engine_cache_path = engine_cache_path + ".encrypted";
