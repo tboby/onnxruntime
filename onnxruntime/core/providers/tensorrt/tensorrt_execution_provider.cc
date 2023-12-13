@@ -2658,6 +2658,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     // NonZero node has static input and dynamic output
     else if (!has_explicit_profile && !has_dynamic_input_shape && has_dynamic_output_shape) {
       trt_profiles.push_back(trt_builder->createOptimizationProfile());
+      LOGS_DEFAULT(WARNING) << "[TensorRT EP] Create one profile when input shape is static and output shape is dynamic";   
     }
 
     // Check platform availability for low precision
@@ -2774,7 +2775,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     CUDA_CALL_THROW(cudaGetDeviceProperties(&prop, device_id_));
     std::string compute_capability = GetComputeCapacity(prop);
 
-    if (!has_dynamic_input_shape) {
+    if (!has_dynamic_input_shape || !has_dynamic_output_shape) {
       const std::string cache_path = GetCachePath(cache_path_, trt_node_name_with_precision);
       const std::string engine_cache_path = cache_path + "_sm" + compute_capability + ".engine";
       const std::string encrypted_engine_cache_path = engine_cache_path + ".encrypted";
