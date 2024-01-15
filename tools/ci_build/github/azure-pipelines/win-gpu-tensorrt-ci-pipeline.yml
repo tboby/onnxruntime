@@ -43,8 +43,8 @@ jobs:
     parameters:
       EnvSetupScript: $(EnvSetupScript)
       DownloadCUDA: true
-      BuildArch: $(buildArch)
-      BuildConfig: $(BuildConfig)
+      BuildArch: 'x64'
+      BuildConfig: 'RelWithDebInfo'
       MachinePool: 'onnxruntime-Win2022-GPU-A10'
       WithCache: true
       Today: $(Today)
