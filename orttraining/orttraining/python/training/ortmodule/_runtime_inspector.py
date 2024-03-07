@@ -697,9 +697,11 @@ class MemoryObserver:
                     [
                         f" - Plan {index}",
                         ":",
-                        "ON"
-                        if all(cluster_id in user_configs_with_out_freq for cluster_id in cluster_ids_without_freq)
-                        else "OFF",
+                        (
+                            "ON"
+                            if all(cluster_id in user_configs_with_out_freq for cluster_id in cluster_ids_without_freq)
+                            else "OFF"
+                        ),
                         ":",
                         cluster_id,
                         saving_symbolic.freq if details else "",
