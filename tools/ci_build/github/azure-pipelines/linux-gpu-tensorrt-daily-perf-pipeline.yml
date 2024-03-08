@@ -77,9 +77,11 @@ jobs:
     - name: image
       value: ort-image-$(Build.BuildId)
 
+    - name: auth
+      value: --account-name $(account_name) --subscription $(az_subscription)
   steps:
     - ${{ if and(eq(parameters.TrtVersion, 'BIN'), eq(parameters.UseTensorrtOssParser, false)) }}:
-      - script: 'ls -al $(trtBinsDir) && az --version && az storage blob list --account-name lotusscus --container-name models'
+      - script: 'ls -al $(trtBinsDir) && az --version && az storage blob list $(auth) --container-name models'
         displayName: 'Show available TensorRT .tar.gz packages'
 
       - script: 'cp $(trtBinsDir)/TensorRT-$(trtVersion).Linux.x86_64-gnu.cuda-$(tarCudaVersion).cudnn$(tarCudnnVersion).tar.gz $(Build.SourcesDirectory)/onnxruntime/python/tools/tensorrt/perf/build/'
