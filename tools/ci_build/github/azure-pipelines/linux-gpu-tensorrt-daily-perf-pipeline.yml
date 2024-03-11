@@ -43,6 +43,10 @@ parameters:
   type: object
   default: []
 
+- name: BINParam
+  displayName: Param to fetch TRT BIN on-demand
+  type: string
+  default: ""
 
 jobs:
 - job: 'Onnxruntime_Linux_GPU_TensorRT_Perf'
@@ -78,9 +82,8 @@ jobs:
     - name: image
       value: ort-image-$(Build.BuildId)
 
-    - name: binAccess
-      ${{ if eq(parameters.TrtVersion, 'BIN') }}:
-        value: $(binAccessParam)
+    - name: binAccessParam
+      value: ${{ parameters.BINParam }}
 
   steps:
     - ${{ if and(eq(parameters.TrtVersion, 'BIN'), eq(parameters.UseTensorrtOssParser, false)) }}:
