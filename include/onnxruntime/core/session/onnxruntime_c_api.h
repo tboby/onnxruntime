@@ -319,6 +319,7 @@ typedef struct OrtAllocator {
   void*(ORT_API_CALL* Alloc)(struct OrtAllocator* this_, size_t size);                ///< Returns a pointer to an allocated block of `size` bytes
   void(ORT_API_CALL* Free)(struct OrtAllocator* this_, void* p);                      ///< Free a block of memory previously allocated with OrtAllocator::Alloc
   const struct OrtMemoryInfo*(ORT_API_CALL* Info)(const struct OrtAllocator* this_);  ///< Return a pointer to an ::OrtMemoryInfo that describes this allocator
+  void*(ORT_API_CALL* Reserve)(struct OrtAllocator* this_, size_t size);              ///< Returns a pointer to an allocated block of `size` bytes
 } OrtAllocator;
 
 typedef void(ORT_API_CALL* OrtLoggingFunction)(
